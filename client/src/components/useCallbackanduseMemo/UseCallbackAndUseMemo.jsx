@@ -1,7 +1,7 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useMemo, useCallback } from "react";
 import axios from "axios";
 
-const USER_PER_PAGE = 3;
+const USER_PER_PAGE = 5;
 
 const initialData = {
   users: [],
@@ -25,13 +25,13 @@ const reducer = (state, action) => {
         ...state,
         users: action.payload,
         loading: false,
+        error: null,
         currentPage: 1,
       };
     case "FETCH_FAILURE":
       return {
         ...state,
         error: action.payload,
-        loading: false
       };
     case "SET_QUERY":
       return {
@@ -50,7 +50,7 @@ const reducer = (state, action) => {
 
 const UseCallbackAndUseMemo = () => {
   const [state, dispatch] = useReducer(reducer, initialData);
-  const { users, currentPage, error, query, loading } = state;
+  const { users, query, loading, error, currentPage } = state;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -67,64 +67,72 @@ const UseCallbackAndUseMemo = () => {
         } catch (error) {
           dispatch({ type: "FETCH_FAILURE", payload: error.message });
         }
-    };
-    fetchData();
-    }, 300);
+      };
+      fetchData();
+    }, 500);
     return () => clearTimeout(timer);
   }, [query]);
 
-  //pagination logic
-
   const startIndex = (currentPage - 1) * USER_PER_PAGE;
-  const paginatedUsers = users.slice(startIndex, startIndex + USER_PER_PAGE);
+
+  const paginatedUsers = useMemo(() => {
+    return users.slice(startIndex, startIndex + USER_PER_PAGE);
+  }, [users, startIndex]);
+
   const totalPages = Math.ceil(users.length / USER_PER_PAGE);
+
+  const handlePrev = useCallback(() => {
+    dispatch({ type: "SET_PAGE", payload: currentPage - 1 });
+  }, [currentPage]);
+
+  const handleNext = useCallback(() => {
+    dispatch({ type: "SET_PAGE", payload: currentPage + 1 });
+  }, [currentPage]);
 
   return (
     <>
-      <div>Demo on useCallback and useMemo</div>
+      <div>React Dashboard - Pagination Feature</div>
       <input
         type="text"
-        placeholder="Select by User.."
+        placeholder="Search by Name.."
         value={query}
         onChange={(e) =>
           dispatch({ type: "SET_QUERY", payload: e.target.value })
         }
       />
-      {loading && <div>Loading..</div>}
-      {error && <div>Error: {error}</div>}
-      {!loading && !error && paginatedUsers.length > 0 ? (
-        <>
-        <table>
-            <thead>
+      <div>
+        {!loading && !error && paginatedUsers.length > 0 ? (
+          <>
+            <table>
+              <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>NAME</th>
+                  <th>ID</th>
+                  <th>NAME</th>
                 </tr>
-            </thead>
-            <tbody>
-                { paginatedUsers.map((item)=> (
-                    <tr key={item.id}>
-                        <td>{item.id}</td>
-                        <td>{item.name}</td>
-                    </tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    <td>{item.name}</td>
+                  </tr>
                 ))}
-            </tbody>
-        </table>
-        <div>
-            <button
-                disabled={currentPage ===1}
-                onClick={()=> dispatch({ type: 'SET_PAGE', payload: currentPage -1 })}
-            >Previous</button>
-            <span>{currentPage} of {totalPages}</span>
-            <button
-                disabled={currentPage === totalPages}
-                onClick={()=> dispatch({ type: 'SET_PAGE', payload: currentPage + 1})}
-            >Next</button>
-        </div>
-        </>
-      ) : !loading && !error ? (
-        <div> No data found</div>
-      ) : null}
+              </tbody>
+            </table>
+            <div>
+              <button disabled={currentPage === 1} onClick={handlePrev}>
+                Previous
+              </button>
+              <span>{currentPage} of {totalPages}</span>
+              <button disabled={currentPage === totalPages} onClick={handleNext}>
+                Next
+              </button>
+            </div>
+          </>
+        ) : !loading && !error ? (
+          <div>No data found</div>
+        ) : null}
+      </div>
     </>
   );
 };
